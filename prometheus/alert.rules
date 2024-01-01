@@ -2,21 +2,80 @@ groups:
 - name: example
   rules:
 
-  # Alert for any instance that is unreachable for >2 minutes.
-  - alert: service_down
-    expr: up == 0
-    for: 2m
+  # Validator Down
+  - alert: namada_validator_down
+    expr: up{job="namada-validator"} == 0
+    for: 1m
     labels:
-      severity: page
+      severity: critical
     annotations:
-      summary: "Instance {{ $labels.instance }} down"
-      description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 2 minutes."
+      summary: "Validator down"
+      description: ""
+  
+  # CPU Usage
+  - alert: cpu_usage_over_99%
+    expr: avg(1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance, job)) * 100 > 99
+    for: 1m
+    labels:
+      severity: info
+    annotations:
+      summary: "CPU Usage Over 99%"
+      description: ""
 
-  - alert: high_load
-    expr: node_load1 > 0.5
-    for: 2m
+  # Memory Usage
+  - alert: memory_usage_over_95%
+    expr: (sum(node_memory_MemTotal_bytes{} - node_memory_MemAvailable_bytes{}) / sum(node_memory_MemTotal_bytes{}))*100 > 95
+    for: 1m
     labels:
-      severity: page
+      severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} under high load"
-      description: "{{ $labels.instance }} of job {{ $labels.job }} is under high load."
+      summary: "Memory Usage Over 95%"
+      description: ""
+
+  # Disk Usage
+  - alert: disk_usage_over_95%
+    expr: (sum(avg(node_filesystem_size_bytes{fstype=~"xfs|ext.*"})by(device,instance)) - sum(avg(node_filesystem_free_bytes{fstype=~"xfs|ext.*"})by(device,instance))) *100/(sum(avg(node_filesystem_avail_bytes{fstype=~"xfs|ext.*"})by(device,instance))+(sum(avg(node_filesystem_size_bytes{fstype=~"xfs|ext.*"})by(device,instance)) - sum(avg(node_filesystem_free_bytes{fstype=~"xfs|ext.*"})by(device,instance)))) > 95
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Disk Usage Over 95%"
+      description: ""
+
+  
+  # Namada Validator Consensus
+  - alert: no_difference_blockheight
+    expr: increase(namada_tm_consensus_latest_block_height{}[1m]) == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "No Difference Blockheight"
+      description: ""
+
+  - alert: no_difference_tx
+    expr: increase(namada_tm_consensus_total_txs{}[5m]) == 0
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "No Difference Transaction"
+      description: ""
+      
+  - alert: no_voting_power
+    expr: namada_tm_consensus_byzantine_validators_power == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "No Voting Power"
+      description: ""
+
+  - alert: no_connected_peer
+    expr: namada_tm_p2p_peers == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "No Connected Peer"
+      description: ""
